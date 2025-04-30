@@ -18,6 +18,7 @@ from skimage.segmentation import mark_boundaries
 from matplotlib import pyplot as plt
 import numpy as np
 
+os.environ['TF_USE_LEGACY_KERAS'] = '1'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def parse_args():
@@ -107,7 +108,6 @@ def test(model, test_data):
 
 def main():
     """ Main function. """
-
     time_now = datetime.now()
     timestamp = time_now.strftime("%m%d%y-%H%M%S")
     init_epoch = 0

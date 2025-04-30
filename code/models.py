@@ -59,22 +59,22 @@ class YourModel(tf.keras.Model):
         #             explicitly reshape any tensors anywhere in your network.
 
         self.architecture = [
-              Conv2D(96, 11, 1, padding="same", activation="relu", name="conv_one"),
+              Conv2D(64, 11, 1, padding="same", activation="relu", name="conv_one"),
               MaxPool2D(pool_size=(3, 3), strides=2, name="max_pool_one"),
-              Dropout(0.5, name="dropout_one"),
+              Dropout(0.25, name="dropout_one"),
 
-              Conv2D(256, 5, 1, padding="same", activation="relu", name="conv_two"),
+              Conv2D(128, 5, 1, padding="same", activation="relu", name="conv_two"),
               MaxPool2D(pool_size=(3,3), strides=2, name="max_pool_two"),
-              Dropout(0.5, name="dropout_two"),
+              Dropout(0.25, name="dropout_two"),
 
-              Conv2D(384, 3, 1, padding="same", activation="relu", name="conv_three"),
+              Conv2D(64, 3, 1, padding="same", activation="relu", name="conv_three"),
               MaxPool2D(pool_size=(3,3), strides=2, name="max_pool_three"),
-              Dropout(0.5, name="dropout_four"),
+              Dropout(0.25, name="dropout_four"),
 
               Flatten(),
               Dense(25, activation="relu", name="dense"),
-              Dropout(0.5),
-              Dense(2, activation="softmax", name="output_layer")
+              Dropout(0.25),
+              Dense(1, activation="sigmoid", name="output_layer")
         ]
 
         #       Don't change the line below. This line creates an instance
