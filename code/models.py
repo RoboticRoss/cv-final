@@ -7,9 +7,9 @@ Brown University
 import tensorflow as tf
 from keras.layers import Conv2D, MaxPool2D, Dropout, Flatten, Dense, BatchNormalization
 
+
 import hyperparameters as hp
-from keras.optimizers import SGD, RMSprop, Adam
-from keras import losses
+from keras import optimizers, losses, layers, Sequential
 from keras.initializers import HeNormal
 import hyperparameters as hp
 
@@ -25,7 +25,7 @@ class YourModel(tf.keras.Model):
         # TODO: Select an optimizer for your network (see the documentation
         #       for tf.keras.optimizers)
 
-        self.optimizer = Adam(learning_rate=hp.learning_rate)
+        self.optimizer = optimizers.Adam(learning_rate=hp.learning_rate)
 
         # TASK 1
         # TODO: Build your own convolutional neural network, using Dropout at
@@ -59,29 +59,29 @@ class YourModel(tf.keras.Model):
         #             explicitly reshape any tensors anywhere in your network.
 
         self.architecture = [
-              Conv2D(64, 11, 1, padding="same", activation="relu", name="conv_one"),
-              MaxPool2D(pool_size=(3, 3), strides=2, name="max_pool_one"),
-              Dropout(0.25, name="dropout_one"),
+              layers.Conv2D(64, 11, 1, padding="same", activation="relu", name="conv_one"),
+              layers.MaxPool2D(pool_size=(3, 3), strides=2, name="max_pool_one"),
+              layers.Dropout(0.25, name="dropout_one"),
 
-              Conv2D(128, 5, 1, padding="same", activation="relu", name="conv_two"),
-              MaxPool2D(pool_size=(3,3), strides=2, name="max_pool_two"),
-              Dropout(0.25, name="dropout_two"),
+              layers.Conv2D(128, 5, 1, padding="same", activation="relu", name="conv_two"),
+              layers.MaxPool2D(pool_size=(3,3), strides=2, name="max_pool_two"),
+              layers.Dropout(0.25, name="dropout_two"),
 
-              Conv2D(64, 3, 1, padding="same", activation="relu", name="conv_three"),
-              MaxPool2D(pool_size=(3,3), strides=2, name="max_pool_three"),
-              Dropout(0.25, name="dropout_four"),
+              layers.Conv2D(64, 3, 1, padding="same", activation="relu", name="conv_three"),
+              layers.MaxPool2D(pool_size=(3,3), strides=2, name="max_pool_three"),
+              layers.Dropout(0.25, name="dropout_four"),
 
-              Flatten(),
-              Dense(25, activation="relu", name="dense"),
-              Dropout(0.25),
-              Dense(1, activation="sigmoid", name="output_layer")
+              layers.Flatten(),
+              layers.Dense(25, activation="relu", name="dense"),
+              layers.Dropout(0.25),
+              layers.Dense(1, activation="sigmoid", name="output_layer")
         ]
 
         #       Don't change the line below. This line creates an instance
         #       of a Sequential model using the layers you defined above. 
         #       A sequential model, when called, calls its own layers in 
         #       order to produce its output! 
-        self.your_model = tf.keras.Sequential(self.architecture, name="your_model")
+        self.your_model = Sequential(self.architecture, name="your_model")
 
     def call(self, x):
         """ Passes input image through the network. """
@@ -102,7 +102,7 @@ class YourModel(tf.keras.Model):
         # TODO: Select a loss function for your network 
         #       (see the documentation for tf.keras.losses)
 
-        cce = losses.SparseCategoricalCrossentropy()
+        cce = losses.BinaryCrossentropy()
         return cce(labels, predictions)
 
 
