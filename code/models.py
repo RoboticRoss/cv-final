@@ -74,7 +74,7 @@ class YourModel(tf.keras.Model):
               layers.Flatten(),
               layers.Dense(25, activation="relu", name="dense"),
               layers.Dropout(0.25),
-              layers.Dense(1, activation="sigmoid", name="output_layer")
+              layers.Dense(2, activation="softmax", name="output_layer")
         ]
 
         #       Don't change the line below. This line creates an instance
@@ -114,7 +114,7 @@ class VGGModel(tf.keras.Model):
         # TODO: Select an optimizer for your network (see the documentation
         #       for tf.keras.optimizers)
 
-        self.optimizer = Adam(learning_rate=hp.learning_rate)
+        self.optimizer = optimizers.Adam(learning_rate=hp.learning_rate)
 
         # Don't change the below:
 
@@ -176,7 +176,7 @@ class VGGModel(tf.keras.Model):
         Flatten(),
         Dense(25, activation="relu", name="dense"),
         Dropout(0.5),
-        Dense(15, activation="softmax", name="dense_two") ]
+        Dense(2, activation="softmax", name="dense_two") ]
  
         # Don't change the below:
         self.vgg16 = tf.keras.Sequential(self.vgg16, name="vgg_base")
