@@ -197,6 +197,8 @@ def main():
 
         # Get timestamp and epoch from filename
         regex = r"(?:.+)(?:\.e)(\d+)(?:.+)(?:.weights.h5)"
+
+        print(regex)
         init_epoch = int(re.match(regex, ARGS.load_checkpoint).group(1)) + 1
         timestamp = os.path.basename(os.path.dirname(ARGS.load_checkpoint))
 

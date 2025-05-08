@@ -5,6 +5,7 @@ Brown University
 """
 
 import tensorflow as tf
+import keras
 from keras.layers import Conv2D, MaxPool2D, Dropout, Flatten, Dense, BatchNormalization
 
 
@@ -12,6 +13,60 @@ import hyperparameters as hp
 from keras import optimizers, losses, layers, Sequential
 from keras.initializers import HeNormal
 import hyperparameters as hp
+
+
+class SegmentationModel(tf.keras.Model):
+    """
+    Model for per-pixel classificaton
+    """
+
+    def __init__(self):
+        super(SegmentationModel, self).__init__()
+
+
+        self.optimizer = optimizers.Adam(learning_rate=1e-3, weight_decay=1e-4)
+
+        #input_layer = keras.Input(shape=(480, 640, 1))
+
+        # uses PRE-TRAINED imagenet weights
+        vgg_model = keras.applications.vgg19.VGG19(include_top=False, weights="imagenet", name="vgg19")
+        vgg_model.trainable = False
+
+        self.head = [
+              keras.layers.Conv2D(96, 11, 1, padding="same", activation="relu", name="conv_one"),
+              keras.layers.MaxPool2D(pool_size=(3, 3), strides=2, name="max_pool_one"),
+              keras.layers.Dropout(0.5, name="dropout_one"),
+
+              keras.layers.Conv2D(256, 5, 1, padding="same", activation="relu", name="conv_two"),
+              keras.layers.MaxPool2D(pool_size=(3,3), strides=2, name="max_pool_two"),
+              keras.layers.Dropout(0.5, name="dropout_two"),
+
+              # inspired by the Keras paper
+              keras.layers.Conv2D(filters = 3, kernel_size=(1, 1), padding="same", strides=(1, 1), activation="relu", name="conv_one_keras"),
+              keras.layers.Conv2D(filters = 1, kernel_size=(1, 1), padding="same", strides=(1, 1), activation="softmax", name="conv_two_keras"),
+              keras.layers.UpSampling2D(size=(122, 122), data_format=keras.backend.image_data_format(), interpolation="bilinear", name="up_one"),
+              keras.layers.UpSampling2D(size=(2, 2), data_format=keras.backend.image_data_format(), interpolation="bilinear", name="up_two"),
+
+ ]
+
+ 
+        # Don't change the below:
+        self.vgg19 = vgg_model
+        self.head = keras.Sequential(self.head, name="vgg_head")
+       
+    def call(self, x):
+        """ Passes input image through the network. """
+
+        x = self.vgg19(x)
+        x = self.head(x)
+        return x
+
+    @staticmethod
+    def loss_fn(labels, predictions):
+       """ Loss function for the model. """
+       cce = losses.SparseCategoricalCrossentropy()
+       return cce(labels, predictions)
+
 
 
 
