@@ -7,10 +7,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 from collections import deque
+import time
 
-
-
-# === Pose lifting model ===
+# pose lifting -> tried to maybe estimate the 3d from 2d images, but didn't really work
 class PoseLifter(nn.Module):
     def __init__(self, input_dim=6, output_dim=9):
         super().__init__()
@@ -25,7 +24,6 @@ class PoseLifter(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-# === Load model ===
 model = PoseLifter()
 try:
     model.load_state_dict(torch.load('pose_lifter_weights.pth', map_location='cpu'))
@@ -34,28 +32,28 @@ except FileNotFoundError:
     print("Using random weights! 3D output will be nonsense.")
 model.eval()
 
-# === MediaPipe Pose setup ===
+# mediapipe pose stuff
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
-# Joint indices in MediaPipe format
+# joint indices (right shoulder, elbow, wrist)
 JOINTS = [12, 14, 16]  # right shoulder, elbow, wrist
 
 # Start webcam
 cap = cv2.VideoCapture(0)
 
+# 2D subplot
 fig = plt.figure(figsize=(10, 5))
-# 2D subplot for MediaPipe keypoints
 ax2d = fig.add_subplot(121)
 joint2d_line, = ax2d.plot([], [], 'ro-', linewidth=2, label='2D Arm (MP)')
 ax2d.set_xlim(0, 1)
-ax2d.set_ylim(1, 0)  # inverted Y-axis for screen coords
-ax2d.set_title("MediaPipe 2D Right Arm")
+ax2d.set_ylim(1, 0)  # inverted Y-axis
+ax2d.set_title("2D Right Arm")
 ax2d.set_xlabel("X (normalized)")
 ax2d.set_ylabel("Y (normalized)")
 ax2d.legend()
 
-# 3D plotting setup
+# 3D subplot
 plt.ion()
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -70,11 +68,12 @@ ax.set_zlabel('Z')
 ax.set_title('Live 3D Right Arm Pose')
 ax.legend()
 
-# store smooth joints
-history = [deque(maxlen=5) for _ in range(3)]  # shoulder, elbow, wrist
+# Store joint history
+history = [deque(maxlen=5) for _ in range(3)]
 
+print("Press Q to quit.")
 
-print("Running real-time 2D → 3D arm lifter. Press Q to quit.")
+last_print_time = time.time()
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -94,27 +93,52 @@ while cap.isOpened():
             keypoints_2d.extend([x, y])
             cv2.circle(frame, (int(x * w), int(y * h)), 5, (0, 255, 0), -1)
 
+        # bounding box
+        # as a failsafe for the bounding box with the cnn, we used this to draw a bounding box around the hand
+        # by using the wrist and elbow joints. We knwo the hand is going to be at the end of the wrist and along
+        # the same line that contains the elbow and wrist.
+        elbow_landmark = results.pose_landmarks.landmark[14]
+        wrist_landmark = results.pose_landmarks.landmark[16]
+
+        # convert to pixel coordinates 
+        ex, ey = int(elbow_landmark.x * w), int(elbow_landmark.y * h)
+        wx, wy = int(wrist_landmark.x * w), int(wrist_landmark.y * h)
+
+        # direction vector (wrist - elbow)
+        dx = wx - ex
+        dy = wy - ey
+
+        # project the point beyond the wrist a little bit
+        scale = 0.45  # how far beyond the wrist to go
+        hx = int(wx + dx * scale)
+        hy = int(wy + dy * scale)
+
+        # make the box around this point
+        box_size = 180
+        x1 = max(0, hx - box_size // 2)
+        y1 = max(0, hy - box_size // 2)
+        x2 = min(w, hx + box_size // 2)
+        y2 = min(h, hy + box_size // 2)
+
+        # draw the box
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+        cv2.putText(frame, "Hand", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+
+
         if len(keypoints_2d) == 6:
             input_tensor = torch.tensor([keypoints_2d], dtype=torch.float32)
             with torch.no_grad():
                 pred_3d = model(input_tensor).view(3, 3)  # (3 joints, 3D)
 
-            # Print or send the 3D coords
-            shoulder, elbow, wrist = pred_3d
-            # print("Shoulder:", shoulder.numpy())
-            # print("Elbow   :", elbow.numpy())
-            # print("Wrist   :", wrist.numpy())
-            # print("-" * 40)
-
             # Update history
-            for i, joint in enumerate([shoulder, elbow, wrist]):
+            for i, joint in enumerate(pred_3d):
                 history[i].append(joint.numpy())
 
-            # 2D line update
+            # 2D plot
             joint2d = np.array(keypoints_2d).reshape(3, 2)
             joint2d_line.set_data(joint2d[:, 0], joint2d[:, 1])
 
-            # Update plot
+            # 3D plot
             for i, line in enumerate(lines):
                 data = np.array(history[i])
                 if len(data) > 0:
@@ -122,14 +146,22 @@ while cap.isOpened():
                     line.set_3d_properties(data[:, 2])
 
             if all(len(h) > 0 for h in history):
-                joints_xyz = [h[-1] for h in history]  # latest shoulder, elbow, wrist
-                joints_xyz = np.stack(joints_xyz)  # shape (3, 3)
+                joints_xyz = [h[-1] for h in history]
+                joints_xyz = np.stack(joints_xyz)
                 skeleton_line.set_data(joints_xyz[:, 0], joints_xyz[:, 1])
                 skeleton_line.set_3d_properties(joints_xyz[:, 2])
 
+
+                # print out the coords every 1.5 seconds
+                if time.time() - last_print_time > 1.5:
+                    print("3D Arm Coordinates:")
+                    for label, pt in zip(["Shoulder", "Elbow", "Wrist"], joints_xyz):
+                        print(f"  {label}: x={pt[0]:+.3f}, y={pt[1]:+.3f}, z={pt[2]:+.3f}")
+                    print("-" * 40)
+                    last_print_time = time.time()
+
             plt.draw()
             plt.pause(0.001)
-
 
     cv2.imshow("Webcam - 2D Detection", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
