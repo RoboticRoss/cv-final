@@ -227,5 +227,7 @@ class Datasets():
                 self.idx_to_class[data_gen.class_indices[img_class]] = img_class
                 self.class_to_idx[img_class] = int(data_gen.class_indices[img_class])
                 self.classes[int(data_gen.class_indices[img_class])] = img_class
+        
+        print("CLASS", self.idx_to_class)
 
         return data_gen

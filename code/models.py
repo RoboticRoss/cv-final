@@ -23,14 +23,22 @@ class SegmentationModel(tf.keras.Model):
     def __init__(self):
         super(SegmentationModel, self).__init__()
 
-
+              
         self.optimizer = optimizers.Adam(learning_rate=1e-3, weight_decay=1e-4)
-
-        #input_layer = keras.Input(shape=(480, 640, 1))
-
         # uses PRE-TRAINED imagenet weights
-        vgg_model = keras.applications.vgg19.VGG19(include_top=False, weights="imagenet", name="vgg19")
-        vgg_model.trainable = False
+        vgg_model = keras.applications.vgg19.VGG19(include_top=True, weights="imagenet", name="vgg19")
+
+        backbone = keras.models.Model(
+            inputs=vgg_model.layers[1].input,
+            outputs=[
+                vgg_model.get_layer(block_name).output 
+                for block_name in ["block3_pool", "block4_pool", "block5_pool"] # output at 3 stages to get more information
+            ]
+        )
+
+
+        backbone.trainable = False
+        x = backbone(input_layer)
 
         self.head = [
               keras.layers.Conv2D(96, 11, 1, padding="same", activation="relu", name="conv_one"),
@@ -43,11 +51,10 @@ class SegmentationModel(tf.keras.Model):
 
               # inspired by the Keras paper
               keras.layers.Conv2D(filters = 3, kernel_size=(1, 1), padding="same", strides=(1, 1), activation="relu", name="conv_one_keras"),
-              keras.layers.Conv2D(filters = 1, kernel_size=(1, 1), padding="same", strides=(1, 1), activation="softmax", name="conv_two_keras"),
+              keras.layers.Conv2D(filters = 1, kernel_size=(1, 1), padding="same", strides=(1, 1), activation="relu", name="conv_two_keras"),
               keras.layers.UpSampling2D(size=(122, 122), data_format=keras.backend.image_data_format(), interpolation="bilinear", name="up_one"),
               keras.layers.UpSampling2D(size=(2, 2), data_format=keras.backend.image_data_format(), interpolation="bilinear", name="up_two"),
-
- ]
+        ]
 
  
         # Don't change the below:
@@ -256,3 +263,4 @@ class VGGModel(tf.keras.Model):
         #       model!
         cce = losses.SparseCategoricalCrossentropy()
         return cce(labels, predictions)
+        

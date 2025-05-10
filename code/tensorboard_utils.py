@@ -31,11 +31,11 @@ class ImageLabelingLogger(tf.keras.callbacks.Callback):
     """ Keras callback for logging a plot of test images and their
     predicted labels for viewing in Tensorboard. """
 
-    def __init__(self, logs_path, datasets):
+    def __init__(self, logs_path, train_data, val_data):
         super(ImageLabelingLogger, self).__init__()
 
-        self.datasets = datasets
-        self.task = datasets.task
+        self.datasets = [train_data, val_data]
+        self.task = 1
         self.logs_path = logs_path
 
         print("Done setting up image labeling logger.")
@@ -47,85 +47,85 @@ class ImageLabelingLogger(tf.keras.callbacks.Callback):
         """ Writes a plot of test images and their predicted labels
         to disk. """
 
-        fig = plt.figure(figsize=(9, 9))
-        count_all = 0
-        count_misclassified = 0
+        # fig = plt.figure(figsize=(9, 9))
+        # count_all = 0
+        # count_misclassified = 0
         
-        for batch in self.datasets.test_data:
-            misclassified = []
-            correct_labels = []
-            wrong_labels = []
+        # for batch in self.datasets[0]:
+        #     misclassified = []
+        #     correct_labels = []
+        #     wrong_labels = []
 
-            for i, image in enumerate(batch[0]):
-                plt.subplot(5, 5, min(count_all+1, 25))
+        #     for i, image in enumerate(batch[0]):
+        #         plt.subplot(5, 5, min(count_all+1, 25))
 
-                correct_class_idx = batch[1][i]
-                probabilities = self.model(np.array([image])).numpy()[0]
-                predict_class_idx = np.argmax(probabilities)
+        #         correct_class_idx = batch[1][i]
+        #         probabilities = self.model(np.array([image])).numpy()[0]
+        #         predict_class_idx = np.argmax(probabilities)
 
-                if self.task == '1' or self.task == '2':
-                    image = np.clip(image, 0., 1.)
-                    plt.imshow(image, cmap='gray')
-                else:
-                    # Undo VGG preprocessing
-                    mean = [103.939, 116.779, 123.68]
-                    image[..., 0] += mean[0]
-                    image[..., 1] += mean[1]
-                    image[..., 2] += mean[2]
-                    image = image[:, :, ::-1]
-                    image = image / 255.
-                    image = np.clip(image, 0., 1.)
+        #         if self.task == '1' or self.task == '2':
+        #             image = np.clip(image, 0., 1.)
+        #             plt.imshow(image, cmap='gray')
+        #         else:
+        #             # Undo VGG preprocessing
+        #             # mean = [103.939, 116.779, 123.68]
+        #             # image[..., 0] += mean[0]
+        #             # image[..., 1] += mean[1]
+        #             # image[..., 2] += mean[2]
+        #             # image = image[:, :, ::-1]
+        #             # image = image / 255.
+        #             image = np.clip(image, 0., 1.)
 
-                    plt.imshow(image)
+        #             plt.imshow(image)
 
-                is_correct = correct_class_idx == predict_class_idx
+        #         is_correct = correct_class_idx == predict_class_idx
 
-                title_color = 'b' if is_correct else 'r'
+        #         # title_color = 'b' if is_correct else 'r'
 
-                plt.title(
-                    self.datasets.idx_to_class[predict_class_idx],
-                    color=title_color)
-                plt.axis('off')
+        #         # plt.title(
+        #         #     self.datasets.idx_to_class[predict_class_idx],
+        #         #     color=title_color)
+        #         plt.axis('off')
                 
-                # output individual images with wrong labels
-                if not is_correct:
-                    count_misclassified += 1
-                    misclassified.append(image)
-                    correct_labels.append(correct_class_idx)
-                    wrong_labels.append(predict_class_idx)
+        #         # output individual images with wrong labels
+        #         # if not is_correct:
+                #     count_misclassified += 1
+                #     misclassified.append(image)
+                #     correct_labels.append(correct_class_idx)
+                #     wrong_labels.append(predict_class_idx)
 
-                count_all += 1
+                # count_all += 1
                 
-                # ensure there are >= 2 misclassified images
-                if count_all >= 25 and count_misclassified >= 2:
-                    break
+                # # ensure there are >= 2 misclassified images
+        #         if count_all >= 25 and count_misclassified >= 2:
+        #             break
 
-            if count_all >= 25 and count_misclassified >= 2:
-                break
+        #     if count_all >= 25 and count_misclassified >= 2:
+        #         break
 
-        figure_img = plot_to_image(fig)
+        # figure_img = plot_to_image(fig)
 
-        file_writer_il = tf.summary.create_file_writer(
-            self.logs_path + os.sep + "image_labels")
+        # file_writer_il = tf.summary.create_file_writer(
+        #     self.logs_path + os.sep + "image_labels")
 
-        misclassified_path = "misclassified" + self.logs_path[self.logs_path.index(os.sep):]
-        if not os.path.exists(misclassified_path):
-            os.makedirs(misclassified_path)
-        for correct, wrong, img in zip(correct_labels, wrong_labels, misclassified):
-            wrong = self.datasets.idx_to_class[wrong]
-            correct= self.datasets.idx_to_class[correct]
-            image_name = wrong + "_predicted" + ".png"
-            if not os.path.exists(misclassified_path + os.sep + correct):
-                os.makedirs(misclassified_path + os.sep + correct)
-            plt.imsave(misclassified_path + os.sep + correct + os.sep + image_name, img)
+        # misclassified_path = "misclassified" + self.logs_path[self.logs_path.index(os.sep):]
+        # if not os.path.exists(misclassified_path):
+        #     os.makedirs(misclassified_path)
+        # for correct, wrong, img in zip(correct_labels, wrong_labels, misclassified):
+        #     wrong = self.datasets.idx_to_class[wrong]
+        #     correct= self.datasets.idx_to_class[correct]
+        #     image_name = wrong + "_predicted" + ".png"
+        #     if not os.path.exists(misclassified_path + os.sep + correct):
+        #         os.makedirs(misclassified_path + os.sep + correct)
+        #     plt.imsave(misclassified_path + os.sep + correct + os.sep + image_name, img)
 
-        with file_writer_il.as_default():
-            tf.summary.image("0 Example Set of Image Label Predictions (blue is correct; red is incorrect)",
-                             figure_img, step=epoch_num)
-            for label, wrong, img in zip(correct_labels, wrong_labels, misclassified):
-                img = tf.expand_dims(img, axis=0)
-                tf.summary.image("1 Example @ epoch " + str(epoch_num) + ": " + self.datasets.idx_to_class[label] + " misclassified as " + self.datasets.idx_to_class[wrong], 
-                                 img, step=epoch_num)
+        # with file_writer_il.as_default():
+        #     tf.summary.image("0 Example Set of Image Label Predictions (blue is correct; red is incorrect)",
+        #                      figure_img, step=epoch_num)
+        #     for label, wrong, img in zip(correct_labels, wrong_labels, misclassified):
+        #         img = tf.expand_dims(img, axis=0)
+        #         tf.summary.image("1 Example @ epoch " + str(epoch_num) + ": " + self.datasets.idx_to_class[label] + " misclassified as " + self.datasets.idx_to_class[wrong], 
+        #                          img, step=epoch_num)
 
 class ConfusionMatrixLogger(tf.keras.callbacks.Callback):
     """ Keras callback for logging a confusion matrix for viewing
@@ -207,7 +207,7 @@ class CustomModelSaver(tf.keras.callbacks.Callback):
         super(CustomModelSaver, self).__init__()
 
         self.checkpoint_dir = checkpoint_dir
-        self.task = task
+        self.task = 1
         self.max_num_weights = max_num_weights
 
     def on_epoch_end(self, epoch, logs=None):
@@ -223,20 +223,26 @@ class CustomModelSaver(tf.keras.callbacks.Callback):
         if cur_acc > max_acc:
             save_name = "e{0:03d}-acc{1:.4f}.weights.h5".format(
                 epoch, cur_acc)
+            
+            save_location = self.checkpoint_dir + os.sep + "seg" + save_name
+            print(("\nEpoch {0:03d} TEST accuracy ({1:.4f}) EXCEEDED previous "
+                       "maximum TEST accuracy.\nSaving checkpoint at {location}")
+                       .format(epoch + 1, cur_acc, location = save_location))
+            self.model.save_weights(save_location)
 
-            if self.task == '1' or self.task == '2':
-                save_location = self.checkpoint_dir + os.sep + "your." + save_name
-                print(("\nEpoch {0:03d} TEST accuracy ({1:.4f}) EXCEEDED previous "
-                       "maximum TEST accuracy.\nSaving checkpoint at {location}")
-                       .format(epoch + 1, cur_acc, location = save_location))
-                self.model.save_weights(save_location)
-            elif self.task == '3':
-                save_location = self.checkpoint_dir + os.sep + "vgg." + save_name
-                print(("\nEpoch {0:03d} TEST accuracy ({1:.4f}) EXCEEDED previous "
-                       "maximum TEST accuracy.\nSaving checkpoint at {location}")
-                       .format(epoch + 1, cur_acc, location = save_location))
-                # Only save weights of classification head of VGGModel
-                self.model.head.save_weights(save_location)
+            # if self.task == '1' or self.task == '2':
+            #     save_location = self.checkpoint_dir + os.sep + "your." + save_name
+            #     print(("\nEpoch {0:03d} TEST accuracy ({1:.4f}) EXCEEDED previous "
+            #            "maximum TEST accuracy.\nSaving checkpoint at {location}")
+            #            .format(epoch + 1, cur_acc, location = save_location))
+            #     self.model.save_weights(save_location)
+            # elif self.task == '3':
+            #     save_location = self.checkpoint_dir + os.sep + "vgg." + save_name
+            #     print(("\nEpoch {0:03d} TEST accuracy ({1:.4f}) EXCEEDED previous "
+            #            "maximum TEST accuracy.\nSaving checkpoint at {location}")
+            #            .format(epoch + 1, cur_acc, location = save_location))
+            #     # Only save weights of classification head of VGGModel
+            #     self.model.head.save_weights(save_location)
 
             # Ensure max_num_weights is not exceeded by removing
             # minimum weight
