@@ -46,6 +46,8 @@ class Datasets():
         Returns: none
         """
 
+        print(self.data_path)
+
         # Get list of all images in training directory
         file_list = []
         for root, _, files in os.walk(os.path.join(self.data_path, "train/")):
@@ -62,7 +64,7 @@ class Datasets():
         # Allocate space in memory for images
         data_sample = np.zeros(
             (hp.preprocess_sample_size, hp.img_size, hp.img_size, 3))
-
+        
         # Import images
         for i, file_path in enumerate(file_list):
             img = Image.open(file_path)
@@ -76,32 +78,8 @@ class Datasets():
 
             data_sample[i] = img
         
-        # TASK 1
-        # TODO: Calculate the mean and standard deviation
-        #       of the samples in data_sample and store them in
-        #       self.mean and self.stddev respectively.
-        #
-        #       Note: This is _not_ a mean over all pixels;
-        #             it is a mean image (the mean input data point).
-        #       
-        #             For example, the mean of the two images:
-        #
-        #             [[[0, 0, 100], [0, 0, 100]],      [[[100, 0, 0], [100, 0, 0]],
-        #              [[0, 100, 0], [0, 100, 0]],  and  [[0, 100, 0], [0, 100, 0]],
-        #              [[100, 0, 0], [100, 0, 0]]]       [[0, 0, 100], [0, 0, 100]]]
-        #
-        #             would be
-        #
-        #             [[[50, 0, 50], [50, 0, 50]],
-        #              [[0, 100, 0], [0, 100, 0]],
-        #              [[50, 0, 50], [50, 0, 50]]]
-        #
-        # ==========================================================
-
         self.mean = np.mean(data_sample, axis=0) 
         self.stddev = np.std(data_sample, axis=0)
-
-        # ==========================================================
 
         print("Dataset mean shape: [{0}, {1}, {2}]".format(
             self.mean.shape[0], self.mean.shape[1], self.mean.shape[2]))
@@ -125,37 +103,31 @@ class Datasets():
             img - numpy array of shape (image size, image size, 3)
         """
 
-        # TASK 1
-        # TODO: Standardize the input image. Use self.mean and self.stddev
-        #       that were calculated in calc_mean_and_stddev() to perform
-        #       the standardization.
-        # =============================================================
-
         img = img - self.mean
         img = img / self.stddev
-
-        # =============================================================
-
         return img
 
     def preprocess_fn(self, img):
         """ Preprocess function for ImageDataGenerator. """
 
-        if self.task == '3':
-            img = tf.keras.applications.vgg16.preprocess_input(img)
-        else:
-            img = img / 255.
-            img = self.standardize(img)                          
-        return img
+        
+        img = tf.keras.applications.vgg16.preprocess_input(img)
+       
 
     def custom_preprocess_fn(self, img):
         """ Custom preprocess function for ImageDataGenerator. """
 
-        if self.task == '3':
-            img = tf.keras.applications.vgg16.preprocess_input(img)
-        else:
-            img = img / 255.
-            img = self.standardize(img)
+        img = tf.keras.applications.vgg16.preprocess_input(img)
+       
+        # EXTRA CREDIT: 
+        # Write your own custom data augmentation procedure, creating
+        # an effect that cannot be achieved using the arguments of
+        # ImageDataGenerator. This can potentially boost your accuracy
+        # in the validation set. Note that this augmentation should
+        # only be applied to some input images, so make use of the
+        # 'random' module to make sure this happens. Also, make sure
+        # that ImageDataGenerator uses *this* function for preprocessing
+        # on augmented data.
 
         if random.random() < 0.3:
             img = img + tf.random.uniform(
@@ -184,6 +156,19 @@ class Datasets():
         """
 
         if augment:
+            # TODO: Use the arguments of ImageDataGenerator()
+            #       to augment the data. Leave the
+            #       preprocessing_function argument as is unless
+            #       you have written your own custom preprocessing
+            #       function (see custom_preprocess_fn()).
+            #
+            # Documentation for ImageDataGenerator: https://bit.ly/2wN2EmK
+            #
+            # ============================================================
+
+            # zoom range = 0.2
+            # shear range = 0.2
+
             data_gen = tf.keras.preprocessing.image.ImageDataGenerator(
                 preprocessing_function=self.preprocess_fn, brightness_range=(1.2, 1.6),
                 rescale=1./3, rotation_range=5, channel_shift_range=40.0, 
@@ -205,13 +190,11 @@ class Datasets():
         if bool(self.idx_to_class):
             classes_for_flow = self.classes
 
-        print(classes_for_flow)
-        
         # Form image data generator from directory structure
         data_gen = data_gen.flow_from_directory(
             path,
             target_size=(img_size, img_size),
-            class_mode='binary',
+            class_mode='sparse',
             batch_size=hp.batch_size,
             shuffle=shuffle,
             classes=classes_for_flow)
@@ -227,7 +210,5 @@ class Datasets():
                 self.idx_to_class[data_gen.class_indices[img_class]] = img_class
                 self.class_to_idx[img_class] = int(data_gen.class_indices[img_class])
                 self.classes[int(data_gen.class_indices[img_class])] = img_class
-        
-        print("CLASS", self.idx_to_class)
 
         return data_gen

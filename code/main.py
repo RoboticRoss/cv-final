@@ -29,6 +29,48 @@ import keras
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+
+def parse_args():
+    """ Perform command-line argument parsing. """
+
+    parser = argparse.ArgumentParser(
+        description="Let's train some neural nets!",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        '--data',
+        default='..'+os.sep+'data'+os.sep,
+        help='Location where the dataset is stored.')
+    parser.add_argument(
+        '--load-vgg',
+        default='vgg16_imagenet.weights.h5',
+        help='''Path to pre-trained VGG-16 file (only applicable to
+        task 3).''')
+    parser.add_argument(
+        '--load-checkpoint',
+        default=None,
+        help='''Path to model checkpoint file (should end with the
+        extension .weights.h5). Checkpoints are automatically saved when you
+        train your model. If you want to continue training from where
+        you left off, this is how you would load your weights.''')
+    parser.add_argument(
+        '--confusion',
+        action='store_true',
+        help='''Log a confusion matrix at the end of each
+        epoch (viewable in Tensorboard). This is turned off
+        by default as it takes a little bit of time to complete.''')
+    parser.add_argument(
+        '--evaluate',
+        action='store_true',
+        help='''Skips training and evaluates on the test set once.
+        You can use this to test an already trained model by loading
+        its checkpoint.''')
+    parser.add_argument(
+        '--lime-image',
+        default='test/Bedroom/image_0003.jpg',
+        help='''Name of an image in the dataset to use for LIME evaluation.''')
+
+    return parser.parse_args()
+
 def train(model, datasets, checkpoint_path, logs_path, init_epoch):
     """ Training routine. """
 
@@ -39,7 +81,7 @@ def train(model, datasets, checkpoint_path, logs_path, init_epoch):
             update_freq='batch',
             profile_batch=0),
         ImageLabelingLogger(logs_path, datasets),
-        CustomModelSaver(checkpoint_path, ARGS.task, hp.max_num_weights)
+        CustomModelSaver(checkpoint_path, 3, hp.max_num_weights)
     ]
 
     # Include confusion logger in callbacks if flag set
@@ -100,28 +142,12 @@ def main():
     timestamp = time_now.strftime("%m%d%y-%H%M%S")
     init_epoch = 0
 
-    # If loading from a checkpoint, the loaded checkpoint's directory
-    # will be used for future checkpoints
-    if ARGS.load_checkpoint is not None:
-        ARGS.load_checkpoint = os.path.abspath(ARGS.load_checkpoint)
-
-        # Get timestamp and epoch from filename
-        regex = r"(?:.+)(?:\.e)(\d+)(?:.+)(?:.weights.h5)"
-
-        print(regex)
-        init_epoch = int(re.match(regex, ARGS.load_checkpoint).group(1)) + 1
-        timestamp = os.path.basename(os.path.dirname(ARGS.load_checkpoint))
-
-    # If paths provided by program arguments are accurate, then this will
-    # ensure they are used. If not, these directories/files will be
-    # set relative to the directory of main.py
-    if os.path.exists(ARGS.data):
-        ARGS.data = os.path.abspath(ARGS.data)
-    if os.path.exists(ARGS.load_vgg):
-        ARGS.load_vgg = os.path.abspath(ARGS.load_vgg)
 
     # Run script from location of main.py
     os.chdir(sys.path[0])
+
+    datasets = Datasets(ARGS.data, 3)
+
 
     model = VGGModel()
     checkpoint_path = "checkpoints" + os.sep + \
@@ -135,11 +161,11 @@ def main():
     model.head.summary()
 
     # Load base of VGG model
-    model.vgg16.load_weights(ARGS.load_vgg)
+    model.vgg16.load_weights('/Users/isabella/Desktop/CSCI1430_Projects/cv-final/code/vgg16_imagenet.weights.h5')
     model.head.load_weights('/Users/isabella/Desktop/CSCI1430_Projects/cv-final/code/checkpoints/vgg_model/050625-211806/vgg.e018-acc0.9679.weights.h5')
 
     # Make checkpoint directory if needed
-    if not ARGS.evaluate and not os.path.exists(checkpoint_path):
+    if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)
 
     # Compile model graph
@@ -148,9 +174,19 @@ def main():
         loss=model.loss_fn,
         metrics=["sparse_categorical_accuracy"])
     
-    image = '/Users/isabella/Desktop/CSCI1430_Projects/cv-final/data/test/open/segmentada6.png'
-    
-    classify(image, model)
+    # image = '/Users/isabella/Desktop/CSCI1430_Projects/cv-final/data/test/open/segmentada6.png'
+    # classify(image, model)
+
+
+    train(model, datasets, checkpoint_path, logs_path, init_epoch)
+
+
+    model.evaluate(
+        x=datasets.test_data,
+        verbose=1,
+    )
 
 # Make arguments global
+ARGS = parse_args()
+
 main()
