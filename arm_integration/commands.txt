@@ -1,0 +1,6 @@
+FIND PORTS (MAC):
+ls /dev/tty.*
+
+
+default for me: 
+/dev/tty.usbmodem1301
