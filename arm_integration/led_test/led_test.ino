@@ -7,9 +7,9 @@ void loop() {
   if (Serial.available() > 0) {
     char cmd = Serial.read();
     if (cmd == '1') {
-      digitalWrite(13, HIGH); //LED on
+      digitalWrite(13, HIGH);
     } else if (cmd == '0') {
-      digitalWrite(13, LOW); //LED off
+      digitalWrite(13, LOW); 
     }
   }
 }

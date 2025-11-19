@@ -33,7 +33,7 @@ clawAngle = 55
 closeLabel = "closed"
 
 # !!!! THIS CHANGES EVERY TIME THE DAMN ARDUINO GETS PLUGGED IN
-ser = serial.Serial('/dev/tty.usbmodem1201', 9600, timeout=1)
+ser = serial.Serial('/dev/tty.usbmodem11201', 9600, timeout=1)
 
 time.sleep(2)
 
@@ -139,43 +139,68 @@ def match_training_style(depth_img):
     recolored[(depth_img > lowest+1) & (depth_img <= 100)] = 150
     return recolored
 
-def compute_servo_angles(x, y, z, simple=False):
+def compute_servo_angles(x, y, z):
     L1 = 0.15
     L2 = 0.15
+
+    # === BASE ===
+    if np.sqrt(x**2 + z**2) < 0.05:
+        base_angle = 85
+    else:
+        base_angle = np.degrees(np.arctan2(x, z/8))+90
+    base_angle = clamp(base_angle, *BASE_RANGE)
+    y_scaled = -y*5
+
+    shoulder_angle = np.interp(z, [0.68, 0.9], [5, 85])+ y_scaled * 30
+    shoulder_angle = clamp(shoulder_angle, *SHOULDER_RANGE)
     
-    if simple : #For physical debugging
-        base_angle = 85 if np.sqrt(x**2 + z**2) < 0.05 else np.degrees(np.arctan2(x, z/8)) + 90
-        base_angle = clamp(base_angle, *BASE_RANGE)
-        y_scaled = -y * 5
-        shoulder_angle = np.interp(z, [0.68, 0.9], [5, 85]) + y_scaled * 30
-        shoulder_angle = clamp(shoulder_angle, *SHOULDER_RANGE)
-        elbow_angle = np.interp(z, [0.68, 0.9], [160, 40]) + y_scaled * 20
-        return clamp(base_angle, *BASE_RANGE), clamp(shoulder_angle, *SHOULDER_RANGE), clamp(elbow_angle, *ELBOW_RANGE)
+    elbow_from_z = np.interp(z, [0.68, 0.9], [160, 40])
     
-    else :  
-        base_angle = np.degrees(np.arctan2(x, z))
-        base_angle = clamp(base_angle + 90, *BASE_RANGE)  # center around 90 degrees
+    elbow_adjust = y_scaled * 20
 
-        r = np.sqrt(z**2 + y**2)
-        r = np.clip(r, 1e-6, L1 + L2 - 1e-6)
+    elbow_angle = elbow_from_z + elbow_adjust
+    elbow_angle = clamp(elbow_angle, 40, 160)
 
-        #law of cosines for angle measurement
-        cos_angle = (L1**2 + L2**2 - r**2) / (2 * L1 * L2)
-        cos_angle = np.clip(cos_angle, -1.0, 1.0)
-        elbow_angle_rad = np.arccos(cos_angle)
-        elbow_angle = 180 - np.degrees(elbow_angle_rad)
 
-        cos_theta = (L1**2 + r**2 - L2**2) / (2 * L1 * r)
-        cos_theta = np.clip(cos_theta, -1.0, 1.0)
-        shoulder_offset = np.arccos(cos_theta)
-        shoulder_lift = np.arctan2(y, z)
-        shoulder_angle = np.degrees(shoulder_lift + shoulder_offset)
+    return base_angle, shoulder_angle, elbow_angle
 
-        return (
-            clamp(base_angle, *BASE_RANGE),
-            clamp(shoulder_angle, *SHOULDER_RANGE),
-            clamp(elbow_angle, *ELBOW_RANGE)
-        )
+# def compute_servo_angles(x, y, z, simple=True):
+#     L1 = 0.15
+#     L2 = 0.15
+    
+#     if simple : #For physical debugging
+#         base_angle = 85 if np.sqrt(x**2 + z**2) < 0.05 else np.degrees(np.arctan2(x, z/8)) + 90
+#         base_angle = clamp(base_angle, *BASE_RANGE)
+#         y_scaled = -y * 5
+#         shoulder_angle = np.interp(z, [0.68, 0.9], [5, 85]) + y_scaled * 30
+#         shoulder_angle = clamp(shoulder_angle, *SHOULDER_RANGE)
+#         elbow_angle = np.interp(z, [0.68, 0.9], [160, 40]) + y_scaled * 20
+#         return clamp(base_angle, *BASE_RANGE), clamp(shoulder_angle, *SHOULDER_RANGE), clamp(elbow_angle, *ELBOW_RANGE)
+    
+#     else :  
+#         base_angle = np.degrees(np.arctan2(x, z))
+#         base_angle = clamp(base_angle + 90, *BASE_RANGE)  # center around 90 degrees
+
+#         r = np.sqrt(z**2 + y**2)
+#         r = np.clip(r, 1e-6, L1 + L2 - 1e-6)
+
+#         #law of cosines for angle measurement
+#         cos_angle = (L1**2 + L2**2 - r**2) / (2 * L1 * L2)
+#         cos_angle = np.clip(cos_angle, -1.0, 1.0)
+#         elbow_angle_rad = np.arccos(cos_angle)
+#         elbow_angle = 180 - np.degrees(elbow_angle_rad)
+
+#         cos_theta = (L1**2 + r**2 - L2**2) / (2 * L1 * r)
+#         cos_theta = np.clip(cos_theta, -1.0, 1.0)
+#         shoulder_offset = np.arccos(cos_theta)
+#         shoulder_lift = np.arctan2(y, z)
+#         shoulder_angle = np.degrees(shoulder_lift + shoulder_offset)
+
+#         return (
+#             clamp(base_angle, *BASE_RANGE),
+#             clamp(shoulder_angle, *SHOULDER_RANGE),
+#             clamp(elbow_angle, *ELBOW_RANGE)
+#         )
 
 # store the joint history
 history = [deque(maxlen=5) for _ in range(3)]
